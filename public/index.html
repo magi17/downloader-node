@@ -86,7 +86,7 @@
       if (!videoUrl) return;
 
       // Proxy server to force download with correct headers
-      const proxyUrl = `http://localhost:3000/download?url=${encodeURIComponent(videoUrl)}`;
+      const proxyUrl = `https://downloader.mark-projects.site/download?url=${encodeURIComponent(videoUrl)}`;
 
       const a = document.createElement('a');
       a.href = proxyUrl;
