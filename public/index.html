@@ -11,13 +11,13 @@
     
     <div class="text-center">
       <h1 class="text-2xl font-bold">Social Media Downloader</h1>
-      <p class="text-sm text-gray-400">Supports Facebook, Instagram, and TikTok</p>
+      <p class="text-sm text-gray-400">Supports TikTok, YouTube, Instagram, Facebook, PornHub, LootedPinay, PinayOt</p>
     </div>
 
     <!-- Inner Container: Info Box -->
     <div class="bg-gray-700 p-4 rounded-xl text-sm text-gray-300">
-      <p>This tool allows you to download videos from major platforms easily.</p><br>
-      <p>Wait for YouTube Mp4(video) and Mp3(music) downloader</p>
+      <p>Download videos and audio from major platforms easily.</p><br>
+      <p>YouTube supports MP4 (video) and MP3 (audio) downloads.</p>
       <p class="mt-2 font-semibold">Note: Created by Mark</p>
     </div>
 
@@ -37,28 +37,66 @@
       Download
     </button>
 
-    <!-- Video Player & Save Button -->
-    <div id="videoSection" class="hidden">
-      <video id="videoPlayer" controls class="w-full rounded-lg mt-4 mb-2"></video>
+    <!-- Media Section -->
+    <div id="mediaSection" class="hidden space-y-4">
+      <!-- Video Player -->
+      <video id="videoPlayer" controls class="w-full rounded-lg mt-4 mb-2 hidden"></video>
+      
+      <!-- Audio Player -->
+      <audio id="audioPlayer" controls class="w-full rounded-lg mt-4 mb-2 hidden"></audio>
 
-      <!-- Save as MP4 Button -->
-      <button
-        id="saveButton"
-        onclick="saveAsMP4()"
-        class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700"
-      >
-        Save as MP4
-      </button>
+      <!-- Media Info -->
+      <div id="mediaInfo" class="bg-gray-700 p-4 rounded-xl text-sm text-gray-300"></div>
+
+      <!-- Download Buttons -->
+      <div id="downloadButtons" class="space-y-2">
+        <button
+          id="saveVideoButton"
+          onclick="saveMedia('video')"
+          class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 hidden"
+        >
+          Save as MP4
+        </button>
+        <button
+          id="saveAudioButton"
+          onclick="saveMedia('audio')"
+          class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 hidden"
+        >
+          Save as MP3
+        </button>
+        <button
+          id="saveAudio2Button"
+          onclick="saveMedia('audio_2')"
+          class="w-full bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 hidden"
+        >
+          Save as MP3 (Alternate)
+        </button>
+      </div>
     </div>
   </div>
 
   <script>
-    let videoUrl = '';
+    let mediaData = {};
 
     async function downloadMedia() {
       const url = document.getElementById('urlInput').value;
-      const videoSection = document.getElementById('videoSection');
+      const mediaSection = document.getElementById('mediaSection');
       const videoPlayer = document.getElementById('videoPlayer');
+      const audioPlayer = document.getElementById('audioPlayer');
+      const mediaInfo = document.getElementById('mediaInfo');
+      const saveVideoButton = document.getElementById('saveVideoButton');
+      const saveAudioButton = document.getElementById('saveAudioButton');
+      const saveAudio2Button = document.getElementById('saveAudio2Button');
+
+      // Reset UI
+      videoPlayer.classList.add('hidden');
+      audioPlayer.classList.add('hidden');
+      saveVideoButton.classList.add('hidden');
+      saveAudioButton.classList.add('hidden');
+      saveAudio2Button.classList.add('hidden');
+      mediaInfo.innerHTML = '';
+      mediaSection.classList.add('hidden');
+      mediaData = {};
 
       if (!url) {
         alert('Please enter a URL.');
@@ -66,13 +104,47 @@
       }
 
       try {
-        const response = await fetch(`https://autobot.mark-projects.site/api/download?url=${encodeURIComponent(url)}`);
+        const response = await fetch(`http://localhost:3000/api?url=${encodeURIComponent(url)}`);
         const data = await response.json();
 
-        if (data.success && data.data.url) {
-          videoUrl = data.data.url;
-          videoPlayer.src = videoUrl;
-          videoSection.classList.remove('hidden');
+        if (data.success && (data.data.url || data.data.video || data.data.download)) {
+          mediaData = data.data;
+          mediaSection.classList.remove('hidden');
+
+          // Display media info
+          let infoHtml = `<p><strong>Platform:</strong> ${mediaData.platform}</p>`;
+          if (mediaData.title) infoHtml += `<p><strong>Title:</strong> ${mediaData.title}</p>`;
+          if (mediaData.author) infoHtml += `<p><strong>Author:</strong> ${mediaData.author}</p>`;
+          if (mediaData.description) infoHtml += `<p><strong>Description:</strong> ${mediaData.description}</p>`;
+          if (mediaData.duration) infoHtml += `<p><strong>Duration:</strong> ${mediaData.duration}</p>`;
+          if (mediaData.views) infoHtml += `<p><strong>Views:</strong> ${mediaData.views}</p>`;
+          if (mediaData.upload) infoHtml += `<p><strong>Upload Date:</strong> ${mediaData.upload}</p>`;
+          if (mediaData.thumbnail) infoHtml += `<p><strong>Thumbnail:</strong> <img src="${mediaData.thumbnail}" class="w-full rounded-lg mt-2" alt="Thumbnail"></p>`;
+          mediaInfo.innerHTML = infoHtml;
+
+          // Handle video/audio playback and download buttons
+          if (mediaData.platform === 'youtube') {
+            if (mediaData.video) {
+              videoPlayer.src = mediaData.video;
+              videoPlayer.classList.remove('hidden');
+              saveVideoButton.classList.remove('hidden');
+            }
+            if (mediaData.audio) {
+              audioPlayer.src = mediaData.audio;
+              audioPlayer.classList.remove('hidden');
+              saveAudioButton.classList.remove('hidden');
+            }
+            if (mediaData.audio_2) {
+              saveAudio2Button.classList.remove('hidden');
+            }
+          } else {
+            const videoUrl = mediaData.url || mediaData.download;
+            if (videoUrl) {
+              videoPlayer.src = videoUrl;
+              videoPlayer.classList.remove('hidden');
+              saveVideoButton.classList.remove('hidden');
+            }
+          }
         } else {
           alert('Download failed. Please check the URL.');
         }
@@ -82,15 +154,32 @@
       }
     }
 
-    function saveAsMP4() {
-      if (!videoUrl) return;
+    function saveMedia(type) {
+      let url;
+      let filename = 'media';
 
-      // Proxy server to force download with correct headers
-      const proxyUrl = `https://downloader.mark-projects.site/download?url=${encodeURIComponent(videoUrl)}`;
+      if (mediaData.platform === 'youtube') {
+        if (type === 'video' && mediaData.video) {
+          url = mediaData.video;
+          filename = `${mediaData.title || 'video'}.mp4`;
+        } else if (type === 'audio' && mediaData.audio) {
+          url = mediaData.audio;
+          filename = `${mediaData.title || 'audio'}.mp3`;
+        } else if (type === 'audio_2' && mediaData.audio_2) {
+          url = mediaData.audio_2;
+          filename = `${mediaData.title || 'audio'}_alternate.mp3`;
+        }
+      } else {
+        url = mediaData.url || mediaData.download;
+        filename = `${mediaData.title || 'video'}.mp4`;
+      }
 
+      if (!url) return;
+
+      const proxyUrl = `http://localhost:3000/download?url=${encodeURIComponent(url)}`;
       const a = document.createElement('a');
       a.href = proxyUrl;
-      a.download = 'video.mp4';
+      a.download = filename;
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
